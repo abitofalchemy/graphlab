@@ -109,15 +109,14 @@ class sssp :
                                    graphlab::empty,
                                    min_distance_type>,
   public graphlab::IS_POD_TYPE {
-  distance_type min_dist;
-  bool changed;
-public:
-
-
-  void init(icontext_type& context, const vertex_type& vertex,
-            const min_distance_type& msg) {
-    min_dist = msg.dist;
-  } 
+    distance_type min_dist;
+    bool changed;
+    public:
+        void init(icontext_type& context,
+                  const vertex_type& vertex,
+                  const min_distance_type& msg) {
+        min_dist = msg.dist;
+        }
 
   /**
    * \brief We use the messaging model to compute the SSSP update

@@ -284,12 +284,12 @@ class add_neighbours :
 	/* I have no data. Just force it to POD */
 	public graphlab::IS_POD_TYPE 
 {
-		public:
-  		// Gather on all edges
-  		edge_dir_type gather_edges(icontext_type& context,
-                             const vertex_type& vertex) const {
-    	return graphlab::IN_EDGES;
-  		}
+    public:
+    // Gather on all edges
+    edge_dir_type gather_edges(icontext_type& context,
+                         const vertex_type& vertex) const {
+    return graphlab::IN_EDGES;
+    }
 
 	/*
 	* For each edge, figure out the ID of the "other" vertex
@@ -306,7 +306,7 @@ class add_neighbours :
 		// If we are getting per vertex counts, we need the entire neighborhood
 		vertex_id_type otherid = edge.source().id() == vertex.id() ?
 								 edge.target().id() : edge.source().id();
-		 if(vertex.data().type== 0 && edge.target().data().type == 0)
+        if (vertex.data().type== 0 && edge.target().data().type == 0)
 			 gather.vid_set.insert(otherid);
 		return gather;
   	}
@@ -342,12 +342,10 @@ class add_neighbours :
 };// ends add_neighbours
 
 class main_algo:
-	public graphlab::ivertex_program<graph_type,
-	graphlab::empty, 
-	our_msg >  // our_msg is my message type not gather type 
+	public graphlab::ivertex_program<graph_type, graphlab::empty, our_msg >
+    // our_msg is my message type not gather type
 
 {
-
 	std::vector<Quad> temp1;
 	public:
 	void init(icontext_type& context, const vertex_type& vertex,
@@ -366,6 +364,7 @@ class main_algo:
 	void apply(icontext_type& context, vertex_type& vertex,
 			const graphlab::empty& empty) 
 	{
+        //printf("main algo: apply\n");
 
 		distance_type tp = std::numeric_limits<distance_type>::max() ;
 
@@ -374,13 +373,14 @@ class main_algo:
 		} else if(vertex.data().type==0){ // if a article
 
 			//std::cout<<"Applying on "<<vertex.id()<< " --current "<<vertex.data().dist<<std::endl;
-			for(unsigned int i=0; i<temp1.size();i++){
+            for(unsigned int i=0; i<temp1.size();i++){
 				//gets minimum distance from incoming category edges
 				if(temp1[i].from_src < tp){
 					tp=temp1[i].from_src;
 				}
 			}
-			//is the minimum we just found, less than the distance we currently store? If so, store new minimum.
+			//is the minimum we just found, less than the distance
+            //we currently store? If so, store new minimum.
 			if( tp < vertex.data().dist){
 				vertex.data().dist = tp;
 				//std::cout<<"Setting distance of "<<vertex.id()<<"-"<<tp<<std::endl;
@@ -494,20 +494,22 @@ class main_algo:
  */
 //------Output of the final graph----------
 struct shortest_path_writer {
-	std::string save_vertex(const graph_type::vertex_type& vtx) {
+    std::string save_vertex(const graph_type::vertex_type& vtx) {
     std::stringstream strm;
     
     if(vtx.data().dist != std::numeric_limits<distance_type>::max() )
 		strm << vtx.id() << "\t"<<"ns:"<<"\t"<<vtx.data().type<<"\t"<<vtx.data().dist<<"\n";
     
-//     boost::unordered_set<graphlab::vertex_id_type>::iterator it;
-// 	for( it = vtx.data().vid_set.begin(); it !=vtx.data().vid_set.end(); it++)
-//         strm<<*it<<" ";
+    /*** Added the lines below
+    boost::unordered_set<graphlab::vertex_id_type>::iterator it;
+ 	for( it = vtx.data().vid_set.begin(); it !=vtx.data().vid_set.end(); it++)
+         strm<<*it<<" ";
+    --------------------- */
 		 
 		
     return strm.str();
 	}
-  std::string save_edge(graph_type::edge_type e) { return ""; }
+    std::string save_edge(graph_type::edge_type e) { return ""; }
 }; // end of shortest_path_writer
 
 struct graph_writer {
@@ -664,15 +666,15 @@ int main(int argc, char** argv) {
   	//Loading pages.txt for all the vertices!! 
 	// 	graph.load("hdfs://dsg2.crc.nd.edu/data/enwiki/page.txt" , all_vertex_parser);
 	//graph.load("/data/saguinag/datasets/enwiki/page1m.txt" , all_vertex_parser);
-    graph.load("/Users/saguinag/Research/datasets/enwiki/page1k.txt" , all_vertex_parser);
+    graph.load("/Users/saguinag/Research/datasets/enwiki/page1m.txt" , all_vertex_parser);
 	logstream(LOG_INFO) << "finish vertex parse\n";
   
     //graph.load("/data/saguinag/datasets/enwiki/pagelinks1m.txt", line_parser_art);
-    graph.load("/Users/saguinag/Research/datasets/enwiki/pagelinks1k.txt", line_parser_art);
+    graph.load("/Users/saguinag/Research/datasets/enwiki/pagelinks1m.txt", line_parser_art);
     dc.cout()<<"Next: catlinks" <<std::endl;
     //graph.load("/data/saguinag/datasets/enwiki/catlinks1m.txt", line_parser_categ);
-    graph.load("/Users/saguinag/Research/datasets/enwiki/catlinks1k.txt", line_parser_categ);
-    dc.cout()<<"Sources are---------after "<< sources[0]<<std::endl;
+    graph.load("/Users/saguinag/Research/datasets/enwiki/catlinks1m.txt", line_parser_categ);
+    //dc.cout()<<"Sources are---------after "<< sources[0]<<std::endl;
 	
 	// must call finalize before querying the graph
 	graph.finalize();
