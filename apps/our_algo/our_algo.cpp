@@ -46,40 +46,54 @@ typedef float distance_type;
 
 typedef int		wiki_page_type;
 
+
 struct Quad {
-	graphlab::vertex_id_type src_art;
+	graphlab::vertex_id_type dest_art;
 	distance_type from_last_art;
 	distance_type from_src;
-	//  graphlab::vertex_id_type last_cat;
-	//  graphlab::vertex_id_type last_art;
-	Quad(): src_art(0) {}
+        graphlab::vertex_id_type last_cat;
+	graphlab::vertex_id_type last_art;
+	Quad(): dest_art(0) {}
 
-	Quad(graphlab::vertex_id_type a, distance_type b, distance_type c){
-		src_art =a;
+	Quad(graphlab::vertex_id_type a, distance_type b, distance_type c, graphlab::vertex_id_type _last_art, graphlab::vertex_id_type d){
+		dest_art =a;
 		from_last_art = c;
 		from_src = b;
-		//  last_art = _last_art;
-		//  last_cat = d;
+		last_art = _last_art;
+                last_cat = d;
 	}
 
-	void save(graphlab::oarchive& oarc) const { oarc << src_art << from_last_art << from_src;}
-	void load(graphlab::iarchive& iarc) { iarc >> src_art >> from_last_art >> from_src;}
+	void save(graphlab::oarchive& oarc) const { oarc << dest_art << from_last_art << from_src << last_art << last_cat;}
+	void load(graphlab::iarchive& iarc) { iarc >> dest_art >> from_last_art >> from_src >> last_art >> last_cat;}
 
 };
 
 /**
  * \brief This class is used as the gather type.
- **/
+ */
 struct min_distance_type : graphlab::IS_POD_TYPE {
-	distance_type dist;
-	min_distance_type(distance_type dist =
-			std::numeric_limits<distance_type>::max()) : dist(dist) { }
-	min_distance_type& operator+=(const min_distance_type& other) {
-		dist = std::min(dist, other.dist);
-		return *this;
-	}
+  distance_type dist;
+  min_distance_type(distance_type dist = 
+                    std::numeric_limits<distance_type>::max()) : dist(dist) { }
+  min_distance_type& operator+=(const min_distance_type& other) {
+    dist = std::min(dist, other.dist);
+    return *this;
+  }
 };
 
+/**
+ * \brief The distance associated with the edge.
+ */
+struct edge_data{
+  distance_type dist;
+	edge_data() : dist(1) {}
+	edge_data(distance_type _dist): dist(_dist) {}
+  edge_data(min_distance_type _dist) { 
+		dist = _dist.dist;
+	}
+	void save(graphlab::oarchive& oarc) const { oarc << dist;}
+	void load(graphlab::iarchive& iarc) { iarc >> dist;}
+}; // end of edge data
 
 /**
  * \brief The current distance of the vertex.
@@ -89,52 +103,39 @@ struct vertex_data {
 	wiki_page_type type;
 	boost::unordered_set<graphlab::vertex_id_type> vid_set;
 	boost::unordered_set<graphlab::vertex_id_type> seen;
+        graphlab::vertex_id_type prev_art;
+        distance_type cat_dist_from_prev;
 	std::list<Quad> msg_q;
   bool isDead;
 	bool sent;
-  vertex_data(wiki_page_type type = 0, distance_type dist = std::numeric_limits<distance_type>::max(),bool isDead=false,bool sent=false) :
-    dist(dist), type(type),isDead(isDead),sent(sent) { 		}
+  vertex_data(wiki_page_type type = 0, distance_type dist = std::numeric_limits<distance_type>::max(), graphlab::vertex_id_type prev_art=0, distance_type cat_dist_from_prev=0, bool isDead=false,bool sent=false) :
+    dist(dist), type(type),prev_art(prev_art),cat_dist_from_prev(cat_dist_from_prev),isDead(isDead),sent(sent) { 		}
 
 
 	void save(graphlab::oarchive& oarc) const { 
-		oarc << dist << type << vid_set << isDead << sent << seen;
+		oarc << dist << type << isDead << sent << prev_art;
+		oarc << vid_set << seen ;
 		uint32_t size = msg_q.size();
-		oarc << size;
+		oarc << size; 
 		for(std::list<Quad>::const_iterator it=msg_q.begin(); it != msg_q.end(); ++it ) {
 			oarc << *it;
 		}
-
 	}
 	
 	void load(graphlab::iarchive& iarc) { 
-		iarc >> dist >> type >> vid_set >> isDead >> sent >> seen; 
 		uint32_t msg_q_size;
 		Quad tmp_quad;
-		iarc >> msg_q_size;
+		iarc >> dist >> type >> isDead >> sent >> prev_art;
+		iarc >> vid_set >> seen;
+		iarc >> msg_q_size; 
 		while(msg_q_size > 0) {
 			iarc >> tmp_quad;
 			msg_q.push_back(tmp_quad);
 			msg_q_size--;
 		}
-
 	} 
 
 };
-
-/**
- * \brief The distance associated with the edge.
- */
-
-struct edge_data{
-	distance_type dist;
-	edge_data() : dist(1) {}
-	edge_data(distance_type _dist): dist(_dist) {}
-	edge_data(min_distance_type _dist) {
-		dist = _dist.dist;
-	}
-	void save(graphlab::oarchive& oarc) const { oarc << dist;}
-	void load(graphlab::iarchive& iarc) { iarc >> dist;}
-}; // end of edge data
 
 
 
@@ -161,23 +162,24 @@ get_other_vertex(const graph_type::edge_type& edge,
 bool DIRECTED_SSSP = false;
 
 
+
 bool PER_VERTEX_COUNT = false;
 
 struct Triple: graphlab::IS_POD_TYPE{
 
  distance_type from_last_art;
  distance_type from_src;
- //graphlab::vertex_id_type last_cat;
- //graphlab::vertex_id_type last_art;
+ graphlab::vertex_id_type last_cat;
+ graphlab::vertex_id_type last_art;
 
  Triple():from_src(0){}
 
- Triple(distance_type b, distance_type c)
+ Triple(distance_type b, distance_type c, graphlab::vertex_id_type _last_art, graphlab::vertex_id_type d)
  {
     from_last_art = c;
 		from_src = b;
-		//last_cat = d;
-		//last_art = _last_art;
+		last_cat = d;
+		last_art = _last_art;
  }
 };
 
@@ -216,18 +218,18 @@ our_msg& operator+=(const our_msg& other){
 	std::map<graphlab::vertex_id_type, Triple> temp;
 	
 	for(int i=0; i< other.collection.size(); i++){
-		Triple tp3(other.collection[i].from_src, other.collection[i].from_last_art);
-		temp[other.collection[i].src_art] = tp3;
+		Triple tp3(other.collection[i].from_src, other.collection[i].from_last_art, other.collection[i].last_art, other.collection[i].last_cat);
+		temp[other.collection[i].dest_art] = tp3;
 	}
 
 	for(unsigned int i=0; i < collection.size(); i++){
-		if(temp.find(collection[i].src_art) != temp.end()){
-	    if(temp[collection[i].src_art].from_src < collection[i].from_src){
-				collection[i].from_src = temp[collection[i].src_art].from_src;
-			  collection[i].from_last_art = temp[collection[i].src_art].from_last_art;
-//				collection[i].last_cat = temp[collection[i].src_art].last_cat;
-//				collection[i].last_art = temp[collection[i].src_art].last_art;
-				temp[collection[i].src_art].from_src = -2; // just to mark it
+		if(temp.find(collection[i].dest_art) != temp.end()){
+	    if(temp[collection[i].dest_art].from_src < collection[i].from_src){
+				collection[i].from_src = temp[collection[i].dest_art].from_src;
+        			collection[i].from_last_art = temp[collection[i].dest_art].from_last_art;
+				collection[i].last_cat = temp[collection[i].dest_art].last_cat;
+				collection[i].last_art = temp[collection[i].dest_art].last_art;
+				temp[collection[i].dest_art].from_src = -2; // just to mark it
 			}
 		}
 	}
@@ -237,7 +239,7 @@ our_msg& operator+=(const our_msg& other){
 	//put the ones not included in the collection 
 	for( it = temp.begin(); it!= temp.end(); it++){
     if( (*it).second.from_src != -2 ){
-			Quad tp2(it->first, it->second.from_src, it->second.from_last_art);
+			Quad tp2(it->first, it->second.from_src, it->second.from_last_art, it->second.last_art, it->second.last_cat);
 			collection.push_back(tp2);
 		}	
 	}
@@ -247,7 +249,7 @@ our_msg& operator+=(const our_msg& other){
 
 	for(unsigned int i=0; i < collection.size(); i++)
 	{
-		list_of_dest.insert( collection[i].src_art );
+		list_of_dest.insert( collection[i].dest_art );
 	}
 
 
@@ -367,6 +369,8 @@ class main_algo:
 	{
 
 		distance_type tp = std::numeric_limits<distance_type>::max() ;
+                distance_type cat_dist_from_prev = 0;
+                graphlab::vertex_id_type prev_art = 0;
 
 		if(vertex.data().sent == true){
 			vertex.data().isDead = true;
@@ -377,11 +381,15 @@ class main_algo:
 				//gets minimum distance from incoming category edges
 				if(temp1[i].from_src < tp){
 					tp=temp1[i].from_src;
+                                        prev_art = temp1[i].last_art;
+                                        cat_dist_from_prev = temp1[i].from_last_art;
 				}
 			}
 			//is the minimum we just found, less than the distance we currently store? If so, store new minimum.
 			if( tp < vertex.data().dist){
 				vertex.data().dist = tp;
+                                vertex.data().prev_art = prev_art;
+                                vertex.data().cat_dist_from_prev = cat_dist_from_prev;                      
 				//		std::cout<<"Setting distance of "<<vertex.id()<<"-"<<tp<<std::endl;
 				vertex.data().sent = true;
 			}
@@ -395,7 +403,7 @@ class main_algo:
 								
 			for(unsigned int i=0; i < temp1.size(); i++)
 			{
-				vertex.data().seen.insert(temp1[i].src_art);
+				vertex.data().seen.insert(temp1[i].dest_art);
 
 				if(vertex.data().msg_q.size() > 0){
 					vertex.data().msg_q.pop_front(); //removed in the previous scatter
@@ -433,13 +441,11 @@ class main_algo:
 				{
 
 					Quad msg = vertex.data().msg_q.front() ;
-					//if other has not seen the message.... 
-					if(other.data().seen.find(msg.src_art) == other.data().seen.end())
+					if(other.data().seen.find(msg.dest_art) != other.data().seen.end())
 					{
-	//					std::cout << "\tsending cat to cat message\tcatid: " << vertex.id() << "\tto:" << other.id() << "\tsrc_art:" << msg.src_art << "\tdist: " << msg.from_src << "\titeration\t" << context.iteration() << "\n";
 						msg.from_src += 1;
 						msg.from_last_art += 1;
-
+                                                msg.last_cat = vertex.id();
 						for_cat.collection.push_back(msg); //updating distance
 					}
 				}
@@ -451,26 +457,27 @@ class main_algo:
 		} else if ( other.data().type == 0 && vertex.data().type==14 && other.data().isDead == false){//category to article
    
 		  our_msg for_art;
-			for(int i=0; i<1/*temp1.size()*/; i++){
+			for(int i=0; i<temp1.size(); i++){
 				//If it exists in the add_neighbours 
-				if(other.data().vid_set.find( temp1[i].src_art ) != other.data().vid_set.end()// && 
-						//(other.data().seen.find(temp1[i].src_art) != other.data().seen.end()) )
-					){
-						Quad tp2(temp1[i].src_art, temp1[i].from_src+1, temp1[i].from_last_art+1 );
+				if(other.data().vid_set.find( temp1[i].dest_art ) != other.data().vid_set.end()// && 
+					//(other.data().seen.find(temp1[i].dest_art) != other.data().seen.end()) )
+					)
+				{			
+					Quad tp2(temp1[i].dest_art, temp1[i].from_src+1, temp1[i].from_last_art+1, temp1[i].last_art, vertex.id() );
+					if(temp1[i].from_src != std::numeric_limits<distance_type>::max())
+					{
 						for_art.collection.push_back(tp2);
 					}
+				}
 			}
 			if(for_art.collection.size() !=0){
 				context.signal(other,for_art);
 			}
 		} else if( other.data().type==14 && vertex.data().type ==0 && vertex.data().isDead == false){//article to category
-			//std::cout<<"Required \n";
-
-		//	std::cout << "\tart to cat message, dest:\t" << other.id() << "\tdist:" << vertex.data().dist << "\titeration\t" << context.iteration() << "\tfrom:" << vertex.id() << "\n";
-
+		  //std::cout<<"Required \n";
 
 			our_msg for_cat1;
-		  Quad tp2(vertex.id(), vertex.data().dist, 0);
+		  Quad tp2(other.id(), vertex.data().dist, 1, vertex.id(), 0);
 		  for_cat1.collection.push_back(tp2);
 		  if(vertex.data().dist != std::numeric_limits<distance_type>::max()) 
 			{
@@ -504,7 +511,7 @@ struct shortest_path_writer {
   std::string save_vertex(const graph_type::vertex_type& vtx) {
     std::stringstream strm;
     if(vtx.data().dist != std::numeric_limits<distance_type>::max() )
-		strm << vtx.id() << "\t"<<"ns:"<<"\t"<<vtx.data().type<<"\t"<<vtx.data().dist<<"\n";
+		strm << vtx.id() << "\t"<<"ns:"<<"\t"<<vtx.data().type<<"\t"<<vtx.data().dist<<"\t"<<vtx.data().prev_art<<"\t"<<vtx.data().cat_dist_from_prev<<"\n";
     /* boost::unordered_set<graphlab::vertex_id_type>::iterator it;
 		 for( it = vtx.data().vid_set.begin(); it !=vtx.data().vid_set.end(); it++){
         strm<<*it<<" ";
@@ -607,10 +614,8 @@ strm >> vid;
 strm >> type;
 
 // std::cout<<textline<<std::endl;
-//dc.cout()<<textline<<std::endl;
   if(type==0 || type ==14)
-  graph.add_vertex(vid, vertex_data(type));
-
+		graph.add_vertex(vid, vertex_data(type));
 	return true;
 
 }
@@ -667,11 +672,13 @@ int main(int argc, char** argv) {
   
 //	dc.cout() << "Loading graph in format: "<< format << std::endl;
   //Loading pages.txt for all the vertices!! 
-  graph.load("hdfs://dsg2.crc.nd.edu/data/enwiki/page.txt" , all_vertex_parser);
+  graph.load("/Users/saguinag/Research/datasets/enwiki/pagetoy.txt" , all_vertex_parser);
+
+	logstream(LOG_INFO) << "finish vertex parse\n";
   
-  graph.load("/data/anambiar/pagelinks10m.txt", line_parser_art);
+  graph.load("/Users/saguinag/Research/datasets/enwiki/pagelinkstoy.txt", line_parser_art);
 	
-  graph.load("/data/anambiar/catlinks10m.txt",line_parser_categ); 
+  graph.load("/Users/saguinag/Research/datasets/enwiki/catlinkstoy.txt",line_parser_categ);
 	dc.cout()<<"Sources are---------after "<< sources[0]<<std::endl;
 	// must call finalize before querying the graph
   graph.finalize();
@@ -697,8 +704,8 @@ int main(int argc, char** argv) {
     sources.push_back(v.vid);
   }
   // Running The Engine -------------------------------------------------------
-  sources.clear();
-  sources.push_back(303);	
+//  sources.clear();
+//  sources.push_back(303);	
 	graphlab::omni_engine<add_neighbours> engine(dc, graph, exec_type, clopts);
   engine.signal_all();
 	engine.start();
@@ -715,7 +722,7 @@ int main(int argc, char** argv) {
 	
 	graphlab::omni_engine<main_algo> engine2(dc, graph, exec_type, clopts);
   our_msg init_msg;
-  Quad  tp2(sources[0],0,0);
+  Quad  tp2(sources[0],0,0,0,0);
 	init_msg.collection.push_back(tp2);
  
  
@@ -739,7 +746,7 @@ int main(int argc, char** argv) {
 
 
   // Save the final graph -----------------------------------------------------
-  saveprefix = "/home/anambiar/algo_results/Yay";
+  saveprefix = "/Users/saguinag/Research/Results/Yay";
   if (saveprefix != "") {
     graph.save(saveprefix, shortest_path_writer(),
                false,    // do not gzip
