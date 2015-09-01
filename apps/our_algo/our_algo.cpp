@@ -508,10 +508,15 @@ class main_algo:
  */
 //------Output of the final graph----------
 struct shortest_path_writer {
-  std::string save_vertex(const graph_type::vertex_type& vtx) {
+  std::string save_vertex(const graph_type::vertex_type& vtx)
+  {
     std::stringstream strm;
-    if(vtx.data().dist != std::numeric_limits<distance_type>::max() )
-		strm << vtx.id() << "\t"<<"ns:"<<"\t"<<vtx.data().type<<"\t"<<vtx.data().dist<<"\t"<<vtx.data().prev_art<<"\t"<<vtx.data().cat_dist_from_prev<<"\n";
+    if ( vtx.data().dist != std::numeric_limits<distance_type>::max() )
+      strm  << vtx.id() << "\t"<<"ns:"
+            <<"\t"<<vtx.data().type
+            <<"\t"<<vtx.data().dist
+            <<"\t"<<vtx.data().prev_art
+            <<"\t"<<vtx.data().cat_dist_from_prev<<"\n";
     /* boost::unordered_set<graphlab::vertex_id_type>::iterator it;
 		 for( it = vtx.data().vid_set.begin(); it !=vtx.data().vid_set.end(); it++){
         strm<<*it<<" ";
@@ -560,7 +565,7 @@ bool line_parser_art(graph_type& graph,
   std::stringstream strm(textline);
   graphlab::vertex_id_type vid;
 	graphlab::vertex_id_type tid;
-  wiki_page_type type =1;  
+  // Unused: wiki_page_type type =1;
  
 	// first entry in the line is a vertex ID
   strm >> vid;
@@ -584,7 +589,7 @@ bool line_parser_categ (graph_type& graph,
   std::stringstream strm(textline);
   graphlab::vertex_id_type vid;
 	graphlab::vertex_id_type tid;
-  wiki_page_type type =1;  
+  // Unused: wiki_page_type type =1;
  
 	// first entry in the line is a vertex ID
   strm >> vid;
@@ -626,8 +631,7 @@ int main(int argc, char** argv) {
   global_logger().set_log_level(LOG_INFO);
 
   // Parse command line options -----------------------------------------------
-  graphlab::command_line_options 
-    clopts("Single Source Shortest Path Algorithm.");
+  graphlab::command_line_options clopts("Single Src Shortest Path Algorithm.");
   std::string graph_dir;
   std::string format = "adj";
   std::string exec_type = "synchronous";
@@ -652,10 +656,10 @@ int main(int argc, char** argv) {
 
   clopts.attach_option("engine", exec_type, 
                        "The engine type synchronous or asynchronous");
- 
   
   clopts.attach_option("powerlaw", powerlaw,
                        "Generate a synthetic powerlaw out-degree graph. ");
+  
   std::string saveprefix;
   clopts.attach_option("saveprefix", saveprefix,
                        "If set, will save the resultant pagerank to a "
@@ -670,7 +674,7 @@ int main(int argc, char** argv) {
   // Build the graph ----------------------------------------------------------
   graph_type graph(dc, clopts);
   
-//	dc.cout() << "Loading graph in format: "<< format << std::endl;
+  //	dc.cout() << "Loading graph in format: "<< format << std::endl;
   //Loading pages.txt for all the vertices!! 
   graph.load("/Users/saguinag/Research/datasets/enwiki/pagetoy.txt" , all_vertex_parser);
 
@@ -679,8 +683,9 @@ int main(int argc, char** argv) {
   graph.load("/Users/saguinag/Research/datasets/enwiki/pagelinkstoy.txt", line_parser_art);
 	
   graph.load("/Users/saguinag/Research/datasets/enwiki/catlinkstoy.txt",line_parser_categ);
-	dc.cout()<<"Sources are---------after "<< sources[0]<<std::endl;
-	// must call finalize before querying the graph
+  
+  
+  // must call finalize before querying the graph
   graph.finalize();
   dc.cout() << "#vertices:  " << graph.num_vertices() << std::endl
             << "#edges:     " << graph.num_edges() << std::endl;
@@ -703,9 +708,10 @@ int main(int argc, char** argv) {
       << std::endl;
     sources.push_back(v.vid);
   }
+  
   // Running The Engine -------------------------------------------------------
-//  sources.clear();
-//  sources.push_back(303);	
+  sources.clear();
+  sources.push_back(10); // very specific id to the given set of input graphs
 	graphlab::omni_engine<add_neighbours> engine(dc, graph, exec_type, clopts);
   engine.signal_all();
 	engine.start();
