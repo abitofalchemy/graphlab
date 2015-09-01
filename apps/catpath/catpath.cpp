@@ -173,6 +173,7 @@ struct our_msg {
   our_msg& operator+=(const our_msg& other){
     
 <<<<<<< HEAD
+<<<<<<< HEAD
     std::map<graphlab::vertex_id_type, Triple> temp;
     
     //COUT  << "om: other coll size: " << other.collection.size() << ENDL;
@@ -195,6 +196,8 @@ struct our_msg {
           temp[collection[i].dest_art].from_src = -2; // just to mark it
         }
 =======
+=======
+>>>>>>> aaf639b... Fixed part of the problem catpath
   std::map<graphlab::vertex_id_type, Triple> temp;
   
   //COUT  << "om: other coll size: " << other.collection.size() << ENDL;
@@ -219,6 +222,9 @@ struct our_msg {
         collection[i].last_cat = temp[collection[i].dest_art].last_cat;
         collection[i].last_art = temp[collection[i].dest_art].last_art;
         temp[collection[i].dest_art].from_src = -2; // just to mark it
+<<<<<<< HEAD
+>>>>>>> aaf639b... Fixed part of the problem catpath
+=======
 >>>>>>> aaf639b... Fixed part of the problem catpath
       }
     }
@@ -418,7 +424,10 @@ class main_algo : public graphlab::ivertex_program<graph_type,
   	COUT << "apply phase: " << vertex.id() << ENDL;
     distance_type tp = std::numeric_limits<distance_type>::max(); // inf
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> aaf639b... Fixed part of the problem catpath
     distance_type cat_dist_from_prev = 0;
     graphlab::vertex_id_type prev_art = 0;
     
@@ -431,10 +440,13 @@ class main_algo : public graphlab::ivertex_program<graph_type,
         // From our_msg
         //gets minimum distance from incoming category edges
 <<<<<<< HEAD
+<<<<<<< HEAD
         if(vrtx_dists[i].from_src < tp){ tp=vrtx_dists[i].from_src; }
         COUT << " dest node: "<< vrtx_dists[i].dest_art   << ENDL;
       } // ends for
 =======
+=======
+>>>>>>> aaf639b... Fixed part of the problem catpath
         if(vrtx_dists[i].from_src < tp){
           tp = vrtx_dists[i].from_src;
           prev_art = vrtx_dists[i].last_art;
@@ -450,11 +462,17 @@ class main_algo : public graphlab::ivertex_program<graph_type,
         vertex.data().cat_dist_from_prev = cat_dist_from_prev;
         vertex.data().sent = true; // mark the node as seen
 <<<<<<< HEAD
+<<<<<<< HEAD
         }
       COUT << " dist= " << vertex.data().dist << ENDL; 
 	  
 	
       //end of if an article
+=======
+        COUT << "apply: v.dist= " << vertex.data().dist << ENDL;
+      } //end of if an article
+      
+>>>>>>> aaf639b... Fixed part of the problem catpath
     } else if(vertex.data().type==14){ // if a category -- very unclear ********
 		//       std::map<graphlab::vertex_id_type, Triple> temp;
 		for(unsigned int i=0; i < vrtx_dists.size(); i++) {
@@ -508,7 +526,12 @@ class main_algo : public graphlab::ivertex_program<graph_type,
     
     const vertex_type other = get_other_vertex(edge, vertex);
 <<<<<<< HEAD
+<<<<<<< HEAD
     COUT<< "scatter: " << vertex.id() << "->" << other.id() << ENDL;
+=======
+    //COUT<< "sctr: " << vertex.id() << "->" << other.id() << ENDL;
+    //COUT<< "  " << vertex.data().type << "->" << other.data().type << ENDL;
+>>>>>>> aaf639b... Fixed part of the problem catpath
 =======
     //COUT<< "sctr: " << vertex.id() << "->" << other.id() << ENDL;
     //COUT<< "  " << vertex.data().type << "->" << other.data().type << ENDL;
@@ -531,6 +554,7 @@ class main_algo : public graphlab::ivertex_program<graph_type,
       }
 
     } // ends cat to cat
+<<<<<<< HEAD
 <<<<<<< HEAD
     else if ( vertex.data().type==14  
     		      && other.data().type == 0
@@ -558,6 +582,14 @@ class main_algo : public graphlab::ivertex_program<graph_type,
     {
    		our_msg for_art;
    		for(unsigned int i=0; i<vrtx_dists.size(); i++){
+=======
+    else if (vertex.data().type  == 14 &&
+             other.data().type   == 0 &&
+             other.data().isDead == false) //category to article ***************
+    {
+   		our_msg for_art;
+   		for(unsigned int i=0; i<vrtx_dists.size(); i++){
+>>>>>>> aaf639b... Fixed part of the problem catpath
         // If it exists in the add_neighbours: print out the dest art
         COUT << "scatter: (c,a) " << vertex.id() << "," << other.id()
              << " dest art: " << vrtx_dists[i].dest_art << std::endl;
@@ -585,6 +617,7 @@ class main_algo : public graphlab::ivertex_program<graph_type,
       	}
       
 <<<<<<< HEAD
+<<<<<<< HEAD
     }
     else if( vertex.data().type == 0 && other.data().type==14
               && vertex.data().isDead == false)//article to category
@@ -593,6 +626,14 @@ class main_algo : public graphlab::ivertex_program<graph_type,
       our_msg for_cat1;
       
       Quad tp2(other.id(), vertex.data().dist, 0); // changed from other v
+=======
+    } // ends else if
+    else if( vertex.data().type ==0	&& other.data().type==14
+              && vertex.data().isDead == false) //article to category **********
+    {
+      our_msg for_cat1;
+      Quad    tp2(other.id(), vertex.data().dist, 1, vertex.id(), 0);
+>>>>>>> aaf639b... Fixed part of the problem catpath
 =======
     } // ends else if
     else if( vertex.data().type ==0	&& other.data().type==14

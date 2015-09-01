@@ -683,14 +683,20 @@ int main(int argc, char** argv) {
   graph.load("/data/saguinag/datasets/enwiki/pagelinkstoy.txt", line_parser_art);
 	
 <<<<<<< HEAD
+<<<<<<< HEAD
   graph.load("/data/saguinag/datasets/enwiki/catlinkstoy.txt",line_parser_categ);
 	dc.cout()<<"Sources are---------after "<< sources[0]<<std::endl;
 	// must call finalize before querying the graph
 =======
+=======
+>>>>>>> aaf639b... Fixed part of the problem catpath
   graph.load("/Users/saguinag/Research/datasets/enwiki/catlinkstoy.txt",line_parser_categ);
   
   
   // must call finalize before querying the graph
+<<<<<<< HEAD
+>>>>>>> aaf639b... Fixed part of the problem catpath
+=======
 >>>>>>> aaf639b... Fixed part of the problem catpath
   graph.finalize();
   dc.cout() << "#vertices:  " << graph.num_vertices() << std::endl
