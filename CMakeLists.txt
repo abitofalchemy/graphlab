@@ -539,9 +539,9 @@ if (NOT MTUNE)
   #set to native if supported
   check_cxx_compiler_flag(-mtune=x86-64 HAS_MTUNE_NATIVE)
   if(HAS_MTUNE_NATIVE)
-    set(MTUNE "x86-64")
+    set(MTUNE "k8")
   else()
-    set(MTUNE "x86-64")
+    set(MTUNE "k8")
   endif()
 endif()
 
