@@ -34,6 +34,7 @@
 
 
 bool DIRECTED_SSSP = true;
+bool PER_VERTEX_COUNT = false;
 
 /**
  *  * \brief The type used to measure distances in the graph.
@@ -42,21 +43,24 @@ typedef float distance_type ;
 typedef   int wiki_page_type; // namespace
 
 
-
+/**
+ * * \ a custom struc we call Quad
+ * * /
+ * */
 struct Quad {
 	graphlab::vertex_id_type dest_art;
 	distance_type from_last_art;
 	distance_type from_src;
-	//  graphlab::vertex_id_type last_cat;
-	//	graphlab::vertex_id_type last_art;
+  graphlab::vertex_id_type last_cat;
+  graphlab::vertex_id_type last_art;
 	Quad(): dest_art(0) {}
 
-	Quad(graphlab::vertex_id_type a, distance_type b, distance_type c){
+	Quad(graphlab::vertex_id_type a, distance_type b, distance_type c, graphlab::vertex_id_type _last_art, graphlab::vertex_id_type d){
 		dest_art      = a;
 		from_last_art = c;
 		from_src      = b;
-    //	last_art = _last_art;
-  	//  last_cat = d;
+    last_art = _last_art;
+    last_cat = d;
 	}
 
 	void save(graphlab::oarchive& oarc) const {
@@ -70,16 +74,16 @@ struct Triple: graphlab::IS_POD_TYPE
 {
   distance_type from_last_art;
   distance_type from_src;
-  //graphlab::vertex_id_type last_cat;
-  //graphlab::vertex_id_type last_art;
+  graphlab::vertex_id_type last_cat;
+  graphlab::vertex_id_type last_art;
   
   Triple():from_src(0){}
-  Triple(distance_type b, distance_type c)
+  Triple(distance_type b, distance_type c, graphlab::vertex_id_type _last_art, graphlab::vertex_id_type d)
   {
     from_last_art = c;
     from_src = b;
-    //last_cat = d;
-    //last_art = _last_art;
+    last_cat = d;
+    last_art = _last_art;
  	}
 };
 
@@ -111,6 +115,8 @@ struct vertex_data {
   wiki_page_type type; // 0 or 14 (namespace)
   boost::unordered_set<graphlab::vertex_id_type> vid_set;
   boost::unordered_set<graphlab::vertex_id_type> seen;
+  graphlab::vertex_id_type prev_art; // +
+  distance_type cat_dist_from_prev;
   std::list<Quad> msg_q;
   bool isDead;
   bool sent;
@@ -166,6 +172,7 @@ struct our_msg {
   std::vector<Quad> collection;
   our_msg& operator+=(const our_msg& other){
     
+<<<<<<< HEAD
     std::map<graphlab::vertex_id_type, Triple> temp;
     
     //COUT  << "om: other coll size: " << other.collection.size() << ENDL;
@@ -187,18 +194,45 @@ struct our_msg {
           //				collection[i].last_art = temp[collection[i].dest_art].last_art;
           temp[collection[i].dest_art].from_src = -2; // just to mark it
         }
+=======
+  std::map<graphlab::vertex_id_type, Triple> temp;
+  
+  //COUT  << "om: other coll size: " << other.collection.size() << ENDL;
+  //COUT  << "om: coll size: " << collection.size() << ENDL;
+  for(unsigned int i=0; i< other.collection.size(); i++){
+    Triple tp3(other.collection[i].from_src,
+               other.collection[i].from_last_art,
+               other.collection[i].last_art,
+               other.collection[i].last_cat);
+    //std::cout << "om: Tp3:fs "<< other.collection[i].from_src      << std::endl;
+    //std::cout << "om: Tp3:fla "<< other.collection[i].from_last_art << std::endl;
+    //COUT << "om: other coll dest_art: " <<other.collection[i].dest_art << ENDL;
+    temp[other.collection[i].dest_art] = tp3;
+  }
+  
+  for(unsigned int i=0; i< collection.size(); i++){
+    if(temp.find(collection[i].dest_art) != temp.end()) {
+      if(temp[collection[i].dest_art].from_src < collection[i].from_src){
+        
+        collection[i].from_src = temp[collection[i].dest_art].from_src;
+        collection[i].from_last_art = temp[collection[i].dest_art].from_last_art;
+        collection[i].last_cat = temp[collection[i].dest_art].last_cat;
+        collection[i].last_art = temp[collection[i].dest_art].last_art;
+        temp[collection[i].dest_art].from_src = -2; // just to mark it
+>>>>>>> aaf639b... Fixed part of the problem catpath
       }
     }
-    
-    std::map<graphlab::vertex_id_type, Triple>::iterator it;
-    
-    //put the ones not included in the collection
-    for( it = temp.begin(); it!= temp.end(); it++){
-      if( (*it).second.from_src != -2 ){
-        Quad tp2(it->first, it->second.from_src, it->second.from_last_art);
-        collection.push_back(tp2);
-      }
+  }
+  
+  std::map<graphlab::vertex_id_type, Triple>::iterator it;
+  
+  //put the ones not included in the collection
+  for( it = temp.begin(); it!= temp.end(); it++){
+    if( (*it).second.from_src != -2 ){
+      Quad tp2(it->first, it->second.from_src, it->second.from_last_art, it->second.last_art, it->second.last_cat);
+      collection.push_back(tp2);
     }
+  }
     
     /*
      std::set<graphlab::vertex_id_type> list_of_dest;
@@ -227,9 +261,9 @@ struct our_msg {
   }
   
   // serialize
-	 void save(graphlab::oarchive& oarc) const {
-     oarc << collection;
-   }
+  void save(graphlab::oarchive& oarc) const {
+    oarc << collection;
+    }
   
   // deserialize
   void load(graphlab::iarchive& iarc) {
@@ -284,7 +318,7 @@ class add_neighbours :
   // Gather on all edges
   edge_dir_type gather_edges(icontext_type& context,
                              const vertex_type& vertex) const {
-    return graphlab::IN_EDGES; // 08Aug15/SA: changed this to OUT
+    return graphlab::OUT_EDGES; // 08Aug15/SA: changed this to OUT
   }
   
   /*
@@ -300,14 +334,22 @@ class add_neighbours :
     // Insert the opposite end of the edge IF the opposite end has
     // ID greater than the current vertex
     // If we are getting per vertex counts, we need the entire neighborhood
+    // if edge.source().id() == vertex.id()
+    //    otherid = edge.target().id()
+    // else
+    //    otherid = edge.source().id()
     vertex_id_type otherid = edge.source().id() == vertex.id() ?
-    edge.target().id() : edge.source().id();
+                             edge.target().id() : edge.source().id();
+//    COUT << vertex.id() << " "<< edge.source().id() << " "<< edge.target().id()  << ENDL;
+//    COUT << edge.target().id(). << ENDL;
     
-    if(vertex.data().type== 0 && edge.target().data().type == 0)
+    if ((vertex.data().type== 0 && edge.target().data().type == 0) ||
+        (vertex.data().type== 0 && edge.target().data().type == 14))
     {
       gather.vid_set.insert(otherid);
-      std::cout << vertex.id() << ", nei (other): "<< otherid << std::endl;
+      std::cout << "  "<< vertex.id() << ", nei (other): "<< otherid << std::endl;
     }
+    
     return gather;
   }
   
@@ -337,23 +379,7 @@ class add_neighbours :
   //                 edge_type& edge) const {
   //   not needed
   //     }
-  //    void scatter(icontext_type& context,
-  //                const vertex_type& vertex, edge_type& edge) const  {
-  //
-  //        set_union_gather gather;
-  //        std::cout<<vertex.id()<<" gather\n";
-  //        // Insert the opposite end of the edge IF the opposite end has
-  //        // ID greater than the current vertex
-  //        // If we are getting per vertex counts, we need the entire neighborhood
-  //        vertex_id_type otherid = edge.source().id() == vertex.id() ?
-  //        edge.target().id() : edge.source().id();
-  //        if(vertex.data().type== 0 && edge.target().data().type == 0)
-  //        {
-  //            gather.vid_set.insert(otherid);
-  //            std::cout << vertex.id() << ", nei (other): "<< otherid << std::endl;
-  //        }
-  //        return gather;
-  //    } // end of scatter
+
   
   
   
@@ -374,14 +400,13 @@ class main_algo : public graphlab::ivertex_program<graph_type,
               const our_msg& msg) { vrtx_dists = msg.collection; }
   
   /**
-   * \brief We use the messaging model to compute the SSSP update
+   * \ brief We use the messaging model to compute the SSSP update
+   * / Gather on NO edges?
    */
   edge_dir_type gather_edges(icontext_type& context,
                              const vertex_type& vertex) const {
     return graphlab::NO_EDGES;
   }; // end of gather_edges
-  
-  // No Gather function needed in this case
   
   /**
    * \brief The apply phase: If the distance is smaller then update
@@ -392,20 +417,39 @@ class main_algo : public graphlab::ivertex_program<graph_type,
   {
   	COUT << "apply phase: " << vertex.id() << ENDL;
     distance_type tp = std::numeric_limits<distance_type>::max(); // inf
+<<<<<<< HEAD
+=======
+    distance_type cat_dist_from_prev = 0;
+    graphlab::vertex_id_type prev_art = 0;
+    
+    printf("apply: %llu\n",vertex.id() );
+>>>>>>> aaf639b... Fixed part of the problem catpath
     if(vertex.data().sent == true){
       vertex.data().isDead = true;
     } else if(vertex.data().type==0){ // if a article **************************
       for(unsigned int i=0; i<vrtx_dists.size();i++){
         // From our_msg
         //gets minimum distance from incoming category edges
+<<<<<<< HEAD
         if(vrtx_dists[i].from_src < tp){ tp=vrtx_dists[i].from_src; }
         COUT << " dest node: "<< vrtx_dists[i].dest_art   << ENDL;
       } // ends for
+=======
+        if(vrtx_dists[i].from_src < tp){
+          tp = vrtx_dists[i].from_src;
+          prev_art = vrtx_dists[i].last_art;
+          cat_dist_from_prev = vrtx_dists[i].from_last_art;
+        }
+      }
+>>>>>>> aaf639b... Fixed part of the problem catpath
       // Is the minimum we just found, less than the distance we currently
       // store? If so, store new minimum.
-      if( tp < vertex.data().dist){
-        vertex.data().dist = tp;
+      if( tp < vertex.data().dist ){
+        vertex.data().dist     = tp;
+        vertex.data().prev_art = prev_art;
+        vertex.data().cat_dist_from_prev = cat_dist_from_prev;
         vertex.data().sent = true; // mark the node as seen
+<<<<<<< HEAD
         }
       COUT << " dist= " << vertex.data().dist << ENDL; 
 	  
@@ -421,6 +465,22 @@ class main_algo : public graphlab::ivertex_program<graph_type,
 			
 			if(vertex.data().msg_q.size() > 0)
 				vertex.data().msg_q.pop_front(); //removed in the previous scatter
+=======
+        COUT << "apply: v.dist= " << vertex.data().dist << ENDL;
+      } //end of if an article
+      
+    } else if(vertex.data().type==14){ // if a category -- very unclear ********
+      std::map<graphlab::vertex_id_type, Triple> temp;
+      
+      for(unsigned int i=0; i < vrtx_dists.size(); i++) {
+        //COUT << "  cat|vrtx_dists[i].dest_art "<<vrtx_dists[i].dest_art<<ENDL;
+        vertex.data().seen.insert(vrtx_dists[i].dest_art);
+        vrtx_dists[i].from_last_art +=1;
+        vrtx_dists[i].from_src +=1;
+        if(vertex.data().msg_q.size() > 0){
+          vertex.data().msg_q.pop_front(); //removed in the previous scatter
+        }
+>>>>>>> aaf639b... Fixed part of the problem catpath
         
 			vertex.data().msg_q.push_back( vrtx_dists[i] ) ;
         }// ends for 
@@ -447,7 +507,12 @@ class main_algo : public graphlab::ivertex_program<graph_type,
   {
     
     const vertex_type other = get_other_vertex(edge, vertex);
+<<<<<<< HEAD
     COUT<< "scatter: " << vertex.id() << "->" << other.id() << ENDL;
+=======
+    //COUT<< "sctr: " << vertex.id() << "->" << other.id() << ENDL;
+    //COUT<< "  " << vertex.data().type << "->" << other.data().type << ENDL;
+>>>>>>> aaf639b... Fixed part of the problem catpath
     if(vertex.data().type == 14 && other.data().type==14) //category to category
     {
       our_msg for_cat;
@@ -457,7 +522,7 @@ class main_algo : public graphlab::ivertex_program<graph_type,
       {
             msg.from_src += 1;
             msg.from_last_art += 1;
-            
+            msg.last_cat = vertex.id();
             for_cat.collection.push_back(msg); //updating distance
       }
       
@@ -466,6 +531,7 @@ class main_algo : public graphlab::ivertex_program<graph_type,
       }
 
     } // ends cat to cat
+<<<<<<< HEAD
     else if ( vertex.data().type==14  
     		      && other.data().type == 0
               && other.data().isDead == false)
@@ -485,6 +551,32 @@ class main_algo : public graphlab::ivertex_program<graph_type,
 					   vrtx_dists[i].from_last_art+1 );
 				if(vrtx_dists[i].from_src != std::numeric_limits<distance_type>::max())
 				    for_art.collection.push_back(tp2);
+=======
+    else if (vertex.data().type  == 14 &&
+             other.data().type   == 0 &&
+             other.data().isDead == false) //category to article ***************
+    {
+   		our_msg for_art;
+   		for(unsigned int i=0; i<vrtx_dists.size(); i++){
+        // If it exists in the add_neighbours: print out the dest art
+        COUT << "scatter: (c,a) " << vertex.id() << "," << other.id()
+             << " dest art: " << vrtx_dists[i].dest_art << std::endl;
+        
+        if(other.data().vid_set.find( vrtx_dists[i].dest_art ) !=
+           other.data().vid_set.end() )
+        {
+          printf("  cat->nei: %llu->%llu\n", vrtx_dists[i].dest_art, other.id());
+          
+          Quad tp2(vrtx_dists[i].dest_art,
+                   vrtx_dists[i].from_src+1,
+                   vrtx_dists[i].from_last_art+1,
+                   vrtx_dists[i].last_art,
+                   vertex.id());
+          if(vrtx_dists[i].from_src != std::numeric_limits<distance_type>::max())
+          {
+            for_art.collection.push_back(tp2);
+          }
+>>>>>>> aaf639b... Fixed part of the problem catpath
         }
       	} // ends for
       	if(for_art.collection.size() !=0){
@@ -492,6 +584,7 @@ class main_algo : public graphlab::ivertex_program<graph_type,
         	context.signal(other,for_art);
       	}
       
+<<<<<<< HEAD
     }
     else if( vertex.data().type == 0 && other.data().type==14
               && vertex.data().isDead == false)//article to category
@@ -500,6 +593,14 @@ class main_algo : public graphlab::ivertex_program<graph_type,
       our_msg for_cat1;
       
       Quad tp2(other.id(), vertex.data().dist, 0); // changed from other v
+=======
+    } // ends else if
+    else if( vertex.data().type ==0	&& other.data().type==14
+              && vertex.data().isDead == false) //article to category **********
+    {
+      our_msg for_cat1;
+      Quad    tp2(other.id(), vertex.data().dist, 1, vertex.id(), 0);
+>>>>>>> aaf639b... Fixed part of the problem catpath
       for_cat1.collection.push_back(tp2);
       if(vertex.data().dist != std::numeric_limits<distance_type>::max())
         context.signal(other, for_cat1);
@@ -516,147 +617,6 @@ class main_algo : public graphlab::ivertex_program<graph_type,
 }; // end of shortest path vertex program
 
 
-// Class that used with the omni engine
-//class spaths :
-// Shortest Paths: Derived from bshi
-// HDTM/src/graphlab/apps/hdtm_analysis/hdtm_ana.cpp
-//class cat_paths:
-//	public graphlab::ivertex_program</*cate_*/graph_type, 
-//									 graphlab::empty, 
-//									 our_msg/*sp_message_type*/>
-//{
-//	std::vector<Quad> temp1;
-//	public:
-//	void init(icontext_type& context, const vertex_type& vertex, const our_msg& msg) 
-//	{
-//		temp1 = msg.collection;
-//		}
-//	
-//	// Gather on all edges:
-//	edge_dir_type gather_edges(icontext_type& 		context,
-//							   const vertex_type&   vertex) const 
-//	{	return graphlab:NO_EDGES; }
-//	
-//	void apply(	icontext_type&  context, 
-//				vertex_type&    vertex,
-//				const graphlab::empty& empty) 
-//	{
-//		distance_type tp = std::numeric_limits<distance_type>::max(); // init to inf?
-//
-//		if(vertex.data().sent == true){
-//			vertex.data().isDead = true;
-//		} else if(vertex.data().type==0){ // if a article, but is this might not be avail
-//			//std::cout<<"Applying on "<<vertex.id()<< " --current "<<vertex.data().dist<<std::endl;
-//			std::cout << "temp1.size() " << temp1.size() << std::endl;
-//			for(int i=0; i<temp1.size();i++){
-//				//gets minimum distance from incoming category edges
-//				if(temp1[i].from_src < tp){
-//					tp=temp1[i].from_src;
-//				}
-//			}
-//			//is the minimum we just found, less than the distance we currently store? If so, store new minimum.
-//			if( tp < vertex.data().dist){
-//				vertex.data().dist = tp;
-//				//		std::cout<<"Setting distance of "<<vertex.id()<<"-"<<tp<<std::endl;
-//				vertex.data().sent = true;
-//			}
-//
-//
-//			//end of if an article	
-//		} else if(vertex.data().type==14){//its a category
-//			// dont do anything
-//			
-//			std::map<graphlab::vertex_id_type, Triple> temp;
-//								
-//			for(unsigned int i=0; i < temp1.size(); i++)
-//			{
-//				vertex.data().seen.insert(temp1[i].dest_art);
-//
-//				if(vertex.data().msg_q.size() > 0){
-//					vertex.data().msg_q.pop_front(); //removed in the previous scatter
-//				}
-//				
-//				vertex.data().msg_q.push_back( temp1[i] ) ;
-//
-//			}
-//			
-//		}
-//	} // end of apply
-//		edge_dir_type scatter_edges(icontext_type& context,
-//			const vertex_type& vertex) const {
-//		return graphlab::OUT_EDGES;
-//	}
-//
-//	// Scatter method
-//	void scatter(icontext_type& context, const vertex_type& vertex,
-//			edge_type& edge) const 
-//	{
-//		const vertex_type other = get_other_vertex(edge, vertex);
-//		//		std::cout<<"scattering to "<<other.id()<<"\n";
-//		if(other.data().type==14 && vertex.data().type == 14) {//category to category 
-//			our_msg for_cat;
-//
-//			for(int i=0; i < 1/*temp1.size()*/; i++)
-//			{
-//				//if(temp1[i].from_last_art < 12 && temp1[i].last_cat != other.id() )
-//				{
-//
-//					Quad msg = vertex.data().msg_q.front() ;
-//					if(other.data().seen.find(msg.dest_art) != other.data().seen.end())
-//					{
-//						msg.from_src += 1;
-//						msg.from_last_art += 1;
-//
-//						for_cat.collection.push_back(msg); //updating distance
-//					}
-//				}
-//			}
-//		 	if(for_cat.collection.size() !=0){
-//				context.signal(other, for_cat);
-//			}
-//   
-//		} else if ( other.data().type == 0 && vertex.data().type==14 && other.data().isDead == false){//category to article
-//   
-//		  our_msg for_art;
-//			for(int i=0; i<temp1.size(); i++){
-//				//If it exists in the add_neighbours 
-//				if(other.data().vid_set.find( temp1[i].dest_art ) != other.data().vid_set.end()// && 
-//					//(other.data().seen.find(temp1[i].dest_art) != other.data().seen.end()) )
-//					)
-//				{			
-//					Quad tp2(temp1[i].dest_art, temp1[i].from_src+1, temp1[i].from_last_art+1 );
-//					if(temp1[i].from_src != std::numeric_limits<distance_type>::max())
-//					{
-//						for_art.collection.push_back(tp2);
-//					}
-//				}
-//			}
-//			if(for_art.collection.size() !=0){
-//				context.signal(other,for_art);
-//			}
-//		} else if( other.data().type==14 && vertex.data().type ==0 && vertex.data().isDead == false){//article to category
-//			//std::cout<<"Required \n";
-//			our_msg for_cat1;
-//			Quad tp2(other.id(), vertex.data().dist, 0);
-//			for_cat1.collection.push_back(tp2);
-//			if(vertex.data().dist != std::numeric_limits<distance_type>::max()) 
-//			{
-//				context.signal(other, for_cat1);
-//				}
-//		}
-//	
-//	} // end of scatter
-//
-//	// serialize
-//	void save(graphlab::oarchive& oarc) const {	oarc << temp1;}
-//	
-//	// deserialize
-//	void load(graphlab::iarchive& iarc) { iarc >> temp1;}
-//
-//
-//
-//}; // ends main algo
-
 /**
  * \brief We want to save the final graph so we define a write which will be
  * used in graph.save("path/prefix", pagerank_writer()) to save the graph.
@@ -667,7 +627,11 @@ struct shortest_path_writer {
     std::stringstream strm;
     
     if(vtx.data().dist != std::numeric_limits<distance_type>::max() )
-      strm << vtx.id() << "\t"<<"ns:"<<"\t"<<vtx.data().type<<"\t"<<vtx.data().dist<<"\n";
+      strm << vtx.id() << "\t" << "ns:"
+           << "\t" << vtx.data().type
+           << "\t" <<vtx.data().dist
+           << "\t" <<vtx.data().prev_art
+           << "\t" <<vtx.data().cat_dist_from_prev<<"\n";
     
     //     boost::unordered_set<graphlab::vertex_id_type>::iterator it;
     // 	for( it = vtx.data().vid_set.begin(); it !=vtx.data().vid_set.end(); it++)
@@ -733,7 +697,7 @@ bool all_vertex_parser(graph_type& graph,
                        const std::string& textline){
   std::stringstream strm(textline);
   graphlab::vertex_id_type vid;
-  wiki_page_type type; //? is this used?
+  wiki_page_type type;
   
   // first entry in the line is a vertex ID
   strm >> vid;
@@ -751,12 +715,21 @@ bool all_vertex_parser(graph_type& graph,
  * used in graph.save("path/prefix", pagerank_writer()) to save the graph.
  */
 struct graph_writer {
+//  std::string save_vertex(const graph_type::vertex_type& vtx) {
+//    std::stringstream strm;
+//    strm << vtx.id() << "\t" << vtx.data().dist << "\n";
+//    return strm.str();
+//  }
+//  std::string save_edge(graph_type::edge_type e) { return ""; }
   std::string save_vertex(const graph_type::vertex_type& vtx) {
+    return "";
+    }
+  std::string save_edge(graph_type::edge_type e) {
+    
     std::stringstream strm;
-    strm << vtx.id() << "\t" << vtx.data().dist << "\n";
+    strm<<e.source().data().type<<" "<<e.target().data().type<<"\n";
     return strm.str();
   }
-  std::string save_edge(graph_type::edge_type e) { return ""; }
 }; // end of graph_writer
 
 
@@ -767,14 +740,14 @@ int main( int argc, char** argv) {
   global_logger().set_log_level(LOG_INFO);
 
   // Parse command line options
-  graphlab::command_line_options clopts("Catpath: Augmented SP Algorithm.");
+  graphlab::command_line_options clopts("Catpath: A Weninger SP Algorithm.");
   std::string graph_dir;
   std::string format = "snap";
   std::string exec_type = "synchronous";
   size_t powerlaw = 0;
   
-  //std::vector<graphlab::vertex_id_type> sources;
-  std::vector<unsigned int> sources;
+  std::vector<graphlab::vertex_id_type> sources;
+  //std::vector<unsigned int> sources;
   bool max_degree_source = false;
   clopts.attach_option( "graph", graph_dir, 
                         "The graph file.  If none is provided "
@@ -814,8 +787,8 @@ int main( int argc, char** argv) {
   
   // Must call finalize before querying the graph
   graph.finalize();
-  dc.cout() << "#vertices:  " << graph.num_vertices() << std::endl
-            << "#edges:     " << graph.num_edges() << std::endl;
+  //  dc.cout() << "#vertices:  " << graph.num_vertices() << std::endl
+  //            << "#edges:     " << graph.num_edges() << std::endl;
   
   // Source nodes
   if(sources.empty()) {
@@ -823,7 +796,8 @@ int main( int argc, char** argv) {
         dc.cout()<< "No source vertex provided. Add an argument specifying the"
                     "source id (e.g., --source=# )"
         << std::endl;
-        abort();
+        sources.clear();
+        sources.push_back(10);//abort();
       }
   }
   
@@ -833,15 +807,22 @@ int main( int argc, char** argv) {
   engine.signal_all();
   engine.start();
 
+  
   // Class main_algo computes the catpaths
   graphlab::omni_engine<main_algo> engine2(dc, graph, exec_type, clopts);
   our_msg init_msg;
   Quad seed_values(sources[0], /*dest_art*/
-                   0,/*dist from_last_art*/
-                   0 /*dist from_src*/);
+                   0, /*dist from_last_art*/
+                   0, /*dist from_src*/
+                   0, /*v.id last_cat*/
+                   0  /*v.id last_art*/);
   init_msg.collection.push_back(seed_values);
   engine2.signal(sources[0], init_msg); // starting node and the msg.
   engine2.start();
+  
+  const float runtime = engine2.elapsed_seconds();
+  dc.cout() << "Finished Running engine in " << runtime
+            << " seconds." << std::endl;
   
   // Save the final graph -----------------------------------------------------
   //isaveprefix = "/data/saguinag/Results/catpath_";
@@ -855,5 +836,6 @@ int main( int argc, char** argv) {
 
   // Tear-down communication layer and quit -----------------------------------
   graphlab::mpi_tools::finalize();
-  return EXIT_SUCCESS; 
+  
+  return EXIT_SUCCESS;
 } // end of main
