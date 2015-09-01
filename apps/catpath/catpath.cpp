@@ -168,12 +168,12 @@ struct our_msg {
     
     std::map<graphlab::vertex_id_type, Triple> temp;
     
-    COUT  << "om: other coll size: " << other.collection.size() << ENDL;
-    COUT  << "om: coll size: " << collection.size() << ENDL;
+    //COUT  << "om: other coll size: " << other.collection.size() << ENDL;
+    //COUT  << "om: coll size: " << collection.size() << ENDL;
     for(unsigned int i=0; i< other.collection.size(); i++){
       Triple tp3(other.collection[i].from_src, other.collection[i].from_last_art);
-      std::cout << "om: Tp3:fs "<< other.collection[i].from_src      << std::endl;
-      std::cout << "om: Tp3:fla "<< other.collection[i].from_last_art << std::endl;
+      std::cout << "om: other::fs  "<< other.collection[i].from_src      << std::endl;
+      std::cout << "om: other::fla "<< other.collection[i].from_last_art << std::endl;
       COUT << "om: other coll dest_art: " <<other.collection[i].dest_art << ENDL;
       temp[other.collection[i].dest_art] = tp3;
     }
@@ -390,8 +390,8 @@ class main_algo : public graphlab::ivertex_program<graph_type,
              vertex_type&           vertex,
              const graphlab::empty& empty)
   {
+  	COUT << "apply phase: " << vertex.id() << ENDL;
     distance_type tp = std::numeric_limits<distance_type>::max(); // inf
-    printf("apply: %llu\n",vertex.id() );
     if(vertex.data().sent == true){
       vertex.data().isDead = true;
     } else if(vertex.data().type==0){ // if a article **************************
@@ -399,32 +399,36 @@ class main_algo : public graphlab::ivertex_program<graph_type,
         // From our_msg
         //gets minimum distance from incoming category edges
         if(vrtx_dists[i].from_src < tp){ tp=vrtx_dists[i].from_src; }
-      }
+        COUT << " dest node: "<< vrtx_dists[i].dest_art   << ENDL;
+      } // ends for
       // Is the minimum we just found, less than the distance we currently
       // store? If so, store new minimum.
       if( tp < vertex.data().dist){
         vertex.data().dist = tp;
         vertex.data().sent = true; // mark the node as seen
-        COUT << "apply: v.dist= "<< vertex.data().dist << ENDL;
-      }
+        }
+      COUT << " dist= " << vertex.data().dist << ENDL; 
+	  
+	
       //end of if an article
     } else if(vertex.data().type==14){ // if a category -- very unclear ********
-      std::map<graphlab::vertex_id_type, Triple> temp;
-      
-      for(unsigned int i=0; i < vrtx_dists.size(); i++) {
-        //COUT << "  cat | vrtx_dists[i].dest_art " << vrtx_dists[i].dest_art << ENDL;
-        vertex.data().seen.insert(vrtx_dists[i].dest_art);
+		//       std::map<graphlab::vertex_id_type, Triple> temp;
+		for(unsigned int i=0; i < vrtx_dists.size(); i++) {
+			COUT << "vrtx_dists[i].dest_art "<< vrtx_dists[i].dest_art << ENDL;
+			vertex.data().seen.insert(vrtx_dists[i].dest_art);
+			vrtx_dists[i].from_src +=1;
+			vrtx_dists[i].from_last_art +=1;
+			
+			if(vertex.data().msg_q.size() > 0)
+				vertex.data().msg_q.pop_front(); //removed in the previous scatter
         
-        if(vertex.data().msg_q.size() > 0){
-          vertex.data().msg_q.pop_front(); //removed in the previous scatter
-        }
+			vertex.data().msg_q.push_back( vrtx_dists[i] ) ;
+        }// ends for 
         
-        vertex.data().msg_q.push_back( vrtx_dists[i] ) ;
-        
-      }
       
     } // ends if|else
-      
+	 
+	 
   } // completes apply
   
   /**
@@ -444,7 +448,6 @@ class main_algo : public graphlab::ivertex_program<graph_type,
     
     const vertex_type other = get_other_vertex(edge, vertex);
     COUT<< "scatter: " << vertex.id() << "->" << other.id() << ENDL;
-    //COUT<< "         " << vertex.data().type << "->" << other.data().type << ENDL;
     if(vertex.data().type == 14 && other.data().type==14) //category to category
     {
       our_msg for_cat;
@@ -463,42 +466,40 @@ class main_algo : public graphlab::ivertex_program<graph_type,
       }
 
     } // ends cat to cat
-    else if (vertex.data().type==14  && other.data().type == 0
-               && other.data().isDead == false){//category to article
+    else if ( vertex.data().type==14  
+    		      && other.data().type == 0
+              && other.data().isDead == false)
+    {  //category to article ---------------------------------------------------
    		our_msg for_art;
    		for(unsigned int i=0; i<vrtx_dists.size(); i++){
-        //If it exists in the add_neighbours
-          // print out the dest art
-        COUT <<"scatter: (v,o,da)" << other.id() << " " <<vrtx_dists[i].dest_art << std::endl;
-          
-        if(other.data().vid_set.find( vrtx_dists[i].dest_art ) !=
-           other.data().vid_set.end()// &&
-           //(other.data().seen.find(vrtx_dists[i].dest_art) != other.data().seen.end()) )
-           )
-        {
-          printf("  cat->nei: %llu->%llu\n", vrtx_dists[i].dest_art, other.id());
-          Quad tp2(vrtx_dists[i].dest_art,
-                   vrtx_dists[i].from_src+1,
-                   vrtx_dists[i].from_last_art+1 );
-          if(vrtx_dists[i].from_src != std::numeric_limits<distance_type>::max())
-          {
-            for_art.collection.push_back(tp2);
-          }
+			//If it exists in the add_neighbours
+			//COUT << "scatter (o,da): " << other.id() << " " <<vrtx_dists[i].dest_art << std::endl;
+			if(other.data().vid_set.find( vrtx_dists[i].dest_art ) !=
+			   other.data().vid_set.end()// &&
+			   //(other.data().seen.find(vrtx_dists[i].dest_art) != other.data().seen.end()) )
+			   )
+			{
+			  	printf("add 1\n");// , vrtx_dists[i].dest_art, other.id());
+			  	Quad tp2(vrtx_dists[i].dest_art,
+					   vrtx_dists[i].from_src+1,
+					   vrtx_dists[i].from_last_art+1 );
+				if(vrtx_dists[i].from_src != std::numeric_limits<distance_type>::max())
+				    for_art.collection.push_back(tp2);
         }
-      } // ends for
-      if(for_art.collection.size() !=0){
-        // signals neighbors ?
-        context.signal(other,for_art);
-      }
+      	} // ends for
+      	if(for_art.collection.size() !=0){
+        	// signals neighbors ?
+        	context.signal(other,for_art);
+      	}
       
     }
-    else if( vertex.data().type ==0	&& other.data().type==14
+    else if( vertex.data().type == 0 && other.data().type==14
               && vertex.data().isDead == false)//article to category
     {
-      //COUT<< "  art-cat (v): " << vertex.id() <<",(o): "<<other.id() << ENDL;
-      
+      COUT << " art->cat: " << vertex.id() << " -> " << other.id() << ENDL;
       our_msg for_cat1;
-      Quad    tp2(other.id(), vertex.data().dist, 0); // changed from other v
+      
+      Quad tp2(other.id(), vertex.data().dist, 0); // changed from other v
       for_cat1.collection.push_back(tp2);
       if(vertex.data().dist != std::numeric_limits<distance_type>::max())
         context.signal(other, for_cat1);
@@ -802,11 +803,11 @@ int main( int argc, char** argv) {
   // Begin
   // Build the graph
   graph_type graph(dc, clopts);
-  graph.load("/Users/saguinag/Research/datasets/enwiki/pagetoy.txt" ,
+  graph.load("/data/saguinag/datasets/enwiki/pagetoy.txt" ,
                all_vertex_parser);
-  graph.load("/Users/saguinag/Research/datasets/enwiki/pagelinkstoy.txt",
+  graph.load("/data/saguinag/datasets/enwiki/pagelinkstoy.txt",
                line_parser_art);
-  graph.load("/Users/saguinag/Research/datasets/enwiki/catlinkstoy.txt",
+  graph.load("/data/saguinag/datasets/enwiki/catlinkstoy.txt",
                line_parser_categ);
   logstream(LOG_INFO) << "finish loading all graphs\n";
     
@@ -819,7 +820,7 @@ int main( int argc, char** argv) {
   // Source nodes
   if(sources.empty()) {
     if (max_degree_source == false) {
-        dc.cout() << "No source vertex provided. Add an argument specifying the"
+        dc.cout()<< "No source vertex provided. Add an argument specifying the"
                     "source id (e.g., --source=# )"
         << std::endl;
         abort();
@@ -843,7 +844,8 @@ int main( int argc, char** argv) {
   engine2.start();
   
   // Save the final graph -----------------------------------------------------
-  saveprefix = "/Users/saguinag/Research/Results/catpath_";
+  //isaveprefix = "/data/saguinag/Results/catpath_";
+  saveprefix = "/tmp/catpath_";
   if (saveprefix != "") {
     graph.save(saveprefix, shortest_path_writer(),
                false,    // do not gzip

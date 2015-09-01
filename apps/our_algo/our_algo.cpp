@@ -672,13 +672,13 @@ int main(int argc, char** argv) {
   
 //	dc.cout() << "Loading graph in format: "<< format << std::endl;
   //Loading pages.txt for all the vertices!! 
-  graph.load("/Users/saguinag/Research/datasets/enwiki/pagetoy.txt" , all_vertex_parser);
+  graph.load("/data/saguinag/datasets/enwiki/pagetoy.txt" , all_vertex_parser);
 
 	logstream(LOG_INFO) << "finish vertex parse\n";
   
-  graph.load("/Users/saguinag/Research/datasets/enwiki/pagelinkstoy.txt", line_parser_art);
+  graph.load("/data/saguinag/datasets/enwiki/pagelinkstoy.txt", line_parser_art);
 	
-  graph.load("/Users/saguinag/Research/datasets/enwiki/catlinkstoy.txt",line_parser_categ);
+  graph.load("/data/saguinag/datasets/enwiki/catlinkstoy.txt",line_parser_categ);
 	dc.cout()<<"Sources are---------after "<< sources[0]<<std::endl;
 	// must call finalize before querying the graph
   graph.finalize();
